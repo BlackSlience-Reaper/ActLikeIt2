@@ -6,6 +6,16 @@ using MegaCrit.Sts2.Core.Runs;
 
 namespace ActLikeIt2.Patches;
 
+[HarmonyPatch(typeof(ModelDb), nameof(ModelDb.InitIds))]
+internal static class ActRegistryModelDbIdsPatch
+{
+	[HarmonyPostfix]
+	private static void Postfix()
+	{
+		ActRegistry.OnModelDbIdsInitialized();
+	}
+}
+
 [HarmonyPatch(typeof(ActModel), nameof(ActModel.CreateMap))]
 internal static class ActModelCreateMapPatch
 {

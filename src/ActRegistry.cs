@@ -18,35 +18,54 @@ public static class ActRegistry
 {
 	private static readonly object Gate = new();
 	private static readonly Dictionary<string, ActRegistration> ByEntry = new(StringComparer.OrdinalIgnoreCase);
+	private static readonly Dictionary<Type, ActRegistrationOptions> ByActType = new();
 	private static bool _bootstrapped;
+
+	/// <summary>
+	/// Registers an Act type during mod initialization. The canonical instance is resolved after
+	/// <see cref="ModelDb.InitIds"/>, so the registering mod does not need a Harmony lifecycle patch.
+	/// </summary>
+	public static void Register<TAct>(
+		int actNumber,
+		Func<IRunState, bool>? isAvailable = null)
+		where TAct : ActModel
+	{
+		Register<TAct>(new ActRegistrationOptions
+		{
+			ActNumber = actNumber,
+			IsAvailable = isAvailable
+		});
+	}
+
+	/// <summary>
+	/// Registers an Act type and its fork configuration during mod initialization. ActLikeIt2
+	/// owns ModelDb readiness and binds the canonical model after IDs have been initialized.
+	/// </summary>
+	public static void Register<TAct>(ActRegistrationOptions registration)
+		where TAct : ActModel
+	{
+		ArgumentNullException.ThrowIfNull(registration);
+		Validate(registration);
+		if (typeof(TAct).IsAbstract)
+		{
+			throw new ArgumentException($"Act type '{typeof(TAct).FullName}' must be concrete.", nameof(TAct));
+		}
+
+		lock (Gate)
+		{
+			ByActType[typeof(TAct)] = registration;
+		}
+	}
 
 	public static void Register(ActRegistration registration)
 	{
 		ArgumentNullException.ThrowIfNull(registration);
 		ArgumentNullException.ThrowIfNull(registration.CanonicalAct);
-		if (registration.ActNumber < 1)
-		{
-			throw new ArgumentOutOfRangeException(nameof(registration), "ActNumber must be a positive integer.");
-		}
+		Validate(registration);
 
 		lock (Gate)
 		{
-			bool changed = !ByEntry.TryGetValue(registration.IdEntry, out ActRegistration? existing)
-				|| !ReferenceEquals(existing.CanonicalAct, registration.CanonicalAct)
-				|| existing.ActNumber != registration.ActNumber
-				|| existing.IsAvailable != registration.IsAvailable
-				|| !SameLocString(existing.OptionDescription, registration.OptionDescription)
-				|| !string.Equals(existing.SelectionGroupId, registration.SelectionGroupId, StringComparison.Ordinal)
-				|| !SameLocString(existing.SelectionGroupTitle, registration.SelectionGroupTitle)
-				|| !SameLocString(existing.SelectionGroupDescription, registration.SelectionGroupDescription)
-				|| existing.CustomCreateMap != registration.CustomCreateMap
-				|| existing.CustomMapPointTypes != registration.CustomMapPointTypes
-				|| !existing.ForcedBossOrder.SequenceEqual(registration.ForcedBossOrder, StringComparer.OrdinalIgnoreCase);
-			ByEntry[registration.IdEntry] = registration;
-			if (changed)
-			{
-				ActLikeIt2Mod.Log.Info($"Registered act '{registration.IdEntry}' for slot {registration.ActNumber}.");
-			}
+			RegisterResolved(registration);
 		}
 	}
 
@@ -90,6 +109,11 @@ public static class ActRegistry
 				.ThenBy(static registration => registration.IdEntry, StringComparer.Ordinal)
 				.ToList();
 		}
+	}
+
+	internal static void OnModelDbIdsInitialized()
+	{
+		EnsureBootstrapped();
 	}
 
 	/// <summary>
@@ -206,6 +230,61 @@ public static class ActRegistry
 				&& string.Equals(left.LocEntryKey, right.LocEntryKey, StringComparison.Ordinal));
 	}
 
+	private static void Validate(ActRegistrationOptions registration)
+	{
+		Validate(registration.ActNumber, registration.ForcedBossOrder, nameof(registration));
+	}
+
+	private static void Validate(ActRegistration registration)
+	{
+		Validate(registration.ActNumber, registration.ForcedBossOrder, nameof(registration));
+	}
+
+	private static void Validate(int actNumber, string[] forcedBossOrder, string parameterName)
+	{
+		if (actNumber < 1)
+		{
+			throw new ArgumentOutOfRangeException(parameterName, "ActNumber must be a positive integer.");
+		}
+
+		ArgumentNullException.ThrowIfNull(forcedBossOrder, parameterName);
+	}
+
+	private static void RegisterResolved(ActRegistration registration)
+	{
+		bool changed = !ByEntry.TryGetValue(registration.IdEntry, out ActRegistration? existing)
+			|| !ReferenceEquals(existing.CanonicalAct, registration.CanonicalAct)
+			|| existing.ActNumber != registration.ActNumber
+			|| existing.IsAvailable != registration.IsAvailable
+			|| !SameLocString(existing.OptionDescription, registration.OptionDescription)
+			|| !string.Equals(existing.SelectionGroupId, registration.SelectionGroupId, StringComparison.Ordinal)
+			|| !SameLocString(existing.SelectionGroupTitle, registration.SelectionGroupTitle)
+			|| !SameLocString(existing.SelectionGroupDescription, registration.SelectionGroupDescription)
+			|| existing.CustomCreateMap != registration.CustomCreateMap
+			|| existing.CustomMapPointTypes != registration.CustomMapPointTypes
+			|| !existing.ForcedBossOrder.SequenceEqual(registration.ForcedBossOrder, StringComparer.OrdinalIgnoreCase);
+		ByEntry[registration.IdEntry] = registration;
+		if (changed)
+		{
+			ActLikeIt2Mod.Log.Info($"Registered act '{registration.IdEntry}' for slot {registration.ActNumber}.");
+		}
+	}
+
+	private static void ResolveTypeRegistrations()
+	{
+		foreach ((Type actType, ActRegistrationOptions options) in ByActType
+			.OrderBy(static pair => pair.Key.FullName, StringComparer.Ordinal))
+		{
+			if (!ModelDb.Contains(actType))
+			{
+				continue;
+			}
+
+			ActModel canonicalAct = ModelDb.GetById<ActModel>(ModelDb.GetId(actType));
+			RegisterResolved(options.Bind(canonicalAct));
+		}
+	}
+
 	/// <summary>
 	/// Lazily imports BaseLib's CustomActModel acts into the registry. Deferred until first
 	/// use because custom act instances are not registered until after mod initialization.
@@ -219,6 +298,7 @@ public static class ActRegistry
 		lock (Gate)
 		{
 			Compat.BaseLibCompat.ImportCustomActsIntoRegistry();
+			ResolveTypeRegistrations();
 			if (_bootstrapped)
 			{
 				return;

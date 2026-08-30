@@ -1,0 +1,47 @@
+<Project Sdk="Godot.NET.Sdk/4.5.1">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>false</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>$(NoWarn);CS0436</NoWarn>
+    <RootNamespace>ActLikeIt2</RootNamespace>
+    <AssemblyName>ActLikeIt2</AssemblyName>
+    <BuildOutputDir>$(MSBuildProjectDirectory)\build</BuildOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>$(Sts2DataDir)\sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(Sts2DataDir)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SmartFormat">
+      <HintPath>$(Sts2DataDir)\SmartFormat.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Build-time only: exposes sts2's non-public members so the mod can read RunState.Acts' private
+       setter and ModelDb's caches without hand-written reflection. Produces no runtime dependency. -->
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0" PrivateAssets="all" />
+    <Publicize Include="sts2" IncludeCompilerGeneratedMembers="false" IncludeVirtualMembers="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="build\**\*.cs" />
+    <Compile Remove="tmp\**\*.cs" />
+  </ItemGroup>
+
+  <Target Name="CopyCustomOutput" AfterTargets="Build" Condition="'$(RuntimeIdentifier)' == ''">
+    <MakeDir Directories="$(BuildOutputDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BuildOutputDir)" />
+  </Target>
+</Project>

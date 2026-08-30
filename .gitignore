@@ -1,0 +1,23 @@
+# Godot and build outputs
+.godot/
+build/
+bin/
+obj/
+tmp/
+
+# IDE state
+.idea/
+.vs/
+.vscode/
+*.suo
+*.user
+
+# Machine-local configuration and logs
+local.props
+*.local.props
+*.log
+/Deploy-Mod.ps1
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

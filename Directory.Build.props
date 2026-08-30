@@ -1,0 +1,12 @@
+<Project>
+  <!-- Intentionally does not import the parent Directory.Build.props: the shared workspace file at
+       D:\sls2-resource points GodotPath/Sts2Path at machines that no longer exist. Keeping this file
+       here stops MSBuild's upward search so the project stays self-contained. -->
+  <PropertyGroup>
+    <Sts2Dir Condition="'$(Sts2Dir)' == ''">D:\SteamLibrary\steamapps\common\Slay the Spire 2</Sts2Dir>
+    <Sts2DataDir Condition="'$(Sts2DataDir)' == ''">$(Sts2Dir)\data_sts2_windows_x86_64</Sts2DataDir>
+    <GodotPath Condition="'$(GodotPath)' == ''">D:\Godot\Godot_v4.5.1-stable_mono_win64\Godot_v4.5.1-stable_mono_win64.exe</GodotPath>
+  </PropertyGroup>
+
+  <Import Project="local.props" Condition="Exists('local.props')" />
+</Project>

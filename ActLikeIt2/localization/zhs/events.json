@@ -3,6 +3,8 @@
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.description": "你发现自己站在一个岔路口...",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.RANDOM.title": "随机选择",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.RANDOM.description": "让命运决定下一幕。",
+  "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.REFRESH.title": "刷新",
+  "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.REFRESH.description": "刷新所有选项",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.VICTORY.title": "直接胜利",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.VICTORY.description": "进入建筑师的结算房间。"
 }

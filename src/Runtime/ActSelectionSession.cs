@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ActLikeIt2.Patches;
 using MegaCrit.Sts2.Core.Runs;
 
 namespace ActLikeIt2.Runtime;
@@ -21,7 +22,9 @@ internal static class ActSelectionSession
 	private static bool _isMultiplayer;
 	private static SynchronizationContext? _choiceContext;
 	private static bool _canChooseVictory;
+	private static int _refreshVersion;
 	private static TaskCompletionSource<ActSelectionOutcome> _choice = new();
+	private static IReadOnlyList<ActSelectionGroup> _selectableGroups = Array.Empty<ActSelectionGroup>();
 	private static IReadOnlyList<ActSelectionGroup> _displayGroups = Array.Empty<ActSelectionGroup>();
 
 	public static bool HasPendingSelection => _pendingActIndex.HasValue;
@@ -32,6 +35,11 @@ internal static class ActSelectionSession
 
 	public static bool CanChooseVictory => _canChooseVictory;
 
+	public static bool CanRefreshOptions =>
+		_pendingActIndex.HasValue && _selectableGroups.Count > 0;
+
+	public static int RefreshVersion => _refreshVersion;
+
 	public static void Begin(int actIndex, IRunState runState)
 	{
 		lock (ActMutationGate)
@@ -40,14 +48,49 @@ internal static class ActSelectionSession
 			_choiceClaimed = false;
 			_isMultiplayer = runState.Players.Count > 1;
 			_choiceContext = SynchronizationContext.Current;
-			_displayGroups = ActRegistry
+			_refreshVersion = 0;
+			_selectableGroups = ActRegistry
 				.GetSelectableActGroups(actIndex, runState)
-				.Select(group => group.PreRoll(runState.Rng.UpFront))
 				.ToList();
+			_displayGroups = RollDisplayGroups(runState);
 			_canChooseVictory = actIndex >= 3 && _displayGroups.Count > 0;
 			_choice = new TaskCompletionSource<ActSelectionOutcome>();
 		}
 	}
+
+	public static void RefreshAllOptions(IRunState runState, int expectedVersion)
+	{
+		lock (ActMutationGate)
+		{
+			if (!_pendingActIndex.HasValue
+				|| _choiceClaimed
+				|| expectedVersion != _refreshVersion)
+			{
+				return;
+			}
+
+			int actIndex = _pendingActIndex.Value;
+			MegaCrit.Sts2.Core.Models.ActModel? vanillaAct = VanillaActRollPatch.RollForSlot(
+				actIndex,
+				runState.Rng.UpFront,
+				runState.UnlockState,
+				runState.Players.Count > 1);
+			_selectableGroups = ActRegistry
+				.GetSelectableActGroups(actIndex, runState, vanillaAct)
+				.ToList();
+			_displayGroups = RollDisplayGroups(runState);
+			_refreshVersion++;
+			ActLikeIt2Mod.Log.Info(
+				$"[Fork] Refreshed all options for slot {actIndex + 1}; "
+				+ $"version={_refreshVersion}, "
+				+ $"display=[{string.Join(",", _displayGroups.Select(static group => group.Acts[0].Id.Entry))}].");
+		}
+	}
+
+	private static IReadOnlyList<ActSelectionGroup> RollDisplayGroups(IRunState runState) =>
+		_selectableGroups
+			.Select(group => group.PreRoll(runState.Rng.UpFront))
+			.ToList();
 
 	/// <summary>
 	/// Claims the shared choice once per peer. EventSynchronizer invokes a shared option on
@@ -106,6 +149,8 @@ internal static class ActSelectionSession
 			_choiceClaimed = false;
 			_isMultiplayer = false;
 			_canChooseVictory = false;
+			_refreshVersion = 0;
+			_selectableGroups = Array.Empty<ActSelectionGroup>();
 			_displayGroups = Array.Empty<ActSelectionGroup>();
 			context = _choiceContext;
 			_choiceContext = null;

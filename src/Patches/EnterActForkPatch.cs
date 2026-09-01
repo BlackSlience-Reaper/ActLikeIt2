@@ -96,7 +96,10 @@ internal static class EnterActForkPatch
 			ActLikeIt2Mod.Log.Info($"[Fork] Act choice received; running vanilla EnterAct({actIndex}, transition={doTransition}).");
 
 			await RunManager.Instance.EnterAct(actIndex, doTransition);
-			NRun.Instance?.GlobalUi.TopBar.BossIcon.RefreshBossIcon();
+			if (NRun.Instance?.GlobalUi.TopBar.BossIcon is { } bossIcon)
+			{
+				ForkBossVisibility.RestoreAfterSelection(bossIcon);
+			}
 			ActLikeIt2Mod.Log.Info($"[Fork] Vanilla EnterAct({actIndex}) completed.");
 		}
 		catch (Exception ex)

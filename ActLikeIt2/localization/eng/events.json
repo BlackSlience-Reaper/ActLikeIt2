@@ -3,6 +3,8 @@
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.description": "You find yourself at a crossroad . . .",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.RANDOM.title": "Choose randomly",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.RANDOM.description": "Let fate decide the next act.",
+  "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.REFRESH.title": "Refresh",
+  "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.REFRESH.description": "Refresh all options.",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.VICTORY.title": "Claim victory",
   "FORK_IN_THE_ROAD_EVENT.pages.INITIAL.options.VICTORY.description": "Enter the Architect's chamber and end the run."
 }

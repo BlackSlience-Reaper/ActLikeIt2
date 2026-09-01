@@ -18,6 +18,8 @@ namespace ActLikeIt2.Events;
 /// </summary>
 public sealed class ForkInTheRoadEvent : EventModel
 {
+	internal const string RefreshOptionSuffix = ".pages.INITIAL.options.REFRESH";
+
 	public override bool IsShared => true;
 
 	public override EventLayoutType LayoutType => EventLayoutType.Default;
@@ -28,6 +30,7 @@ public sealed class ForkInTheRoadEvent : EventModel
 		{
 			yield return new LocString(LocTable, Id.Entry + ".pages.INITIAL.options.RANDOM.title");
 			yield return new LocString(LocTable, Id.Entry + ".pages.INITIAL.options.VICTORY.title");
+			yield return new LocString(LocTable, Id.Entry + RefreshOptionSuffix + ".title");
 		}
 	}
 
@@ -66,7 +69,24 @@ public sealed class ForkInTheRoadEvent : EventModel
 				$"{Id.Entry}.pages.INITIAL.options.VICTORY"));
 		}
 
+		if (ActSelectionSession.CanRefreshOptions)
+		{
+			int refreshVersion = ActSelectionSession.RefreshVersion;
+			options.Add(new EventOption(
+				this,
+				() => RefreshAllOptions(refreshVersion),
+				$"{Id.Entry}{RefreshOptionSuffix}")
+				.ThatWontSaveToChoiceHistory());
+		}
+
 		return options;
+	}
+
+	private Task RefreshAllOptions(int expectedVersion)
+	{
+		ActSelectionSession.RefreshAllOptions(Owner!.RunState, expectedVersion);
+		SetEventState(InitialDescription, GenerateInitialOptions());
+		return Task.CompletedTask;
 	}
 
 	private Task ChooseGroup(ActSelectionGroup group)

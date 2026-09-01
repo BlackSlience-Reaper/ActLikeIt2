@@ -90,6 +90,14 @@ internal static class VanillaActRollPatch
 		return result;
 	}
 
+	internal static ActModel? RollForSlot(
+		int actIndex,
+		Rng rng,
+		UnlockState unlockState,
+		bool isMultiplayer) =>
+		BuildVanillaList(rng, unlockState, isMultiplayer)
+			.FirstOrDefault(act => act.Index == actIndex);
+
 	private static bool IsVanilla(ActModel act) =>
 		act is Overgrowth or Underdocks or Hive or Glory;
 }

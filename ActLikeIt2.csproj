@@ -37,6 +37,7 @@
 
   <ItemGroup>
     <Compile Remove="build\**\*.cs" />
+    <Compile Remove="tests\**\*.cs" />
     <Compile Remove="tmp\**\*.cs" />
   </ItemGroup>
 

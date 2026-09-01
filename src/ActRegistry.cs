@@ -124,12 +124,19 @@ public static class ActRegistry
 	/// </summary>
 	public static IReadOnlyList<ActModel> GetSelectableActs(int actIndex, IRunState runState)
 	{
-		int actNumber = actIndex + 1;
-		List<ActRegistration> registrations = GetRegistrationsForSlot(actNumber).ToList();
-
 		ActModel? vanillaAct = actIndex >= 0 && actIndex < runState.Acts.Count
 			? runState.Acts[actIndex].CanonicalInstance
 			: null;
+		return GetSelectableActs(actIndex, runState, vanillaAct);
+	}
+
+	private static IReadOnlyList<ActModel> GetSelectableActs(
+		int actIndex,
+		IRunState runState,
+		ActModel? vanillaAct)
+	{
+		int actNumber = actIndex + 1;
+		List<ActRegistration> registrations = GetRegistrationsForSlot(actNumber).ToList();
 
 		List<ActModel> result = new();
 
@@ -182,7 +189,21 @@ public static class ActRegistry
 		int actIndex,
 		IRunState runState)
 	{
-		IReadOnlyList<ActModel> selectableActs = GetSelectableActs(actIndex, runState);
+		ActModel? vanillaAct = actIndex >= 0 && actIndex < runState.Acts.Count
+			? runState.Acts[actIndex].CanonicalInstance
+			: null;
+		return GetSelectableActGroups(actIndex, runState, vanillaAct);
+	}
+
+	internal static IReadOnlyList<ActSelectionGroup> GetSelectableActGroups(
+		int actIndex,
+		IRunState runState,
+		ActModel? vanillaAct)
+	{
+		IReadOnlyList<ActModel> selectableActs = GetSelectableActs(
+			actIndex,
+			runState,
+			vanillaAct);
 		IReadOnlyList<ActRegistration> registrations = GetRegistrationsForSlot(actIndex + 1);
 		Dictionary<string, ActRegistration> registrationByEntry = registrations
 			.ToDictionary(static registration => registration.IdEntry, StringComparer.OrdinalIgnoreCase);

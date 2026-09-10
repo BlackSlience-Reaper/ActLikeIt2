@@ -75,9 +75,16 @@ internal static class ActSelectionSession
 				runState.Rng.UpFront,
 				runState.UnlockState,
 				runState.Players.Count > 1);
-			_selectableGroups = ActRegistry
-				.GetSelectableActGroups(actIndex, runState, vanillaAct)
-				.ToList();
+			// Act4 及以后没有原版候选，保留进入分岔时的完整候选组。
+			// 其他模组直接加入 RunState.Acts 的章节可能没有对应槽位注册，
+			// 用 null 重建列表会丢失这些章节；刷新只需重新抽取组内候选。
+			if (vanillaAct != null)
+			{
+				_selectableGroups = ActRegistry
+					.GetSelectableActGroups(actIndex, runState, vanillaAct)
+					.ToList();
+			}
+
 			_displayGroups = RollDisplayGroups(runState);
 			_refreshVersion++;
 			ActLikeIt2Mod.Log.Info(

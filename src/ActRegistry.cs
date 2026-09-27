@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using ActLikeIt2.Runtime;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
@@ -19,6 +20,7 @@ public static class ActRegistry
 	private static readonly object Gate = new();
 	private static readonly Dictionary<string, ActRegistration> ByEntry = new(StringComparer.OrdinalIgnoreCase);
 	private static readonly Dictionary<Type, ActRegistrationOptions> ByActType = new();
+	private static readonly ConditionalWeakTable<IRunState, Dictionary<int, ActModel>> ExtendedSlotActs = new();
 	private static bool _bootstrapped;
 
 	/// <summary>
@@ -124,10 +126,37 @@ public static class ActRegistry
 	/// </summary>
 	public static IReadOnlyList<ActModel> GetSelectableActs(int actIndex, IRunState runState)
 	{
-		ActModel? vanillaAct = actIndex >= 0 && actIndex < runState.Acts.Count
+		ActModel? vanillaAct = GetSlotAct(actIndex, runState);
+		return GetSelectableActs(actIndex, runState, vanillaAct);
+	}
+
+	private static ActModel? GetSlotAct(int actIndex, IRunState runState)
+	{
+		ActModel? currentAct = actIndex >= 0 && actIndex < runState.Acts.Count
 			? runState.Acts[actIndex].CanonicalInstance
 			: null;
-		return GetSelectableActs(actIndex, runState, vanillaAct);
+		if (actIndex < 3)
+		{
+			return currentAct;
+		}
+
+		// 第四幕及后续幕可能直接加入本局列表，未进入注册表。
+		// Fork 替换槽位后仍保留该候选；按本局隔离，避免污染下一局。
+		lock (Gate)
+		{
+			Dictionary<int, ActModel> slotActs = ExtendedSlotActs.GetOrCreateValue(runState);
+			if (slotActs.TryGetValue(actIndex, out ActModel? originalAct))
+			{
+				return originalAct;
+			}
+
+			if (currentAct != null)
+			{
+				slotActs.Add(actIndex, currentAct);
+			}
+
+			return currentAct;
+		}
 	}
 
 	private static IReadOnlyList<ActModel> GetSelectableActs(
@@ -189,9 +218,7 @@ public static class ActRegistry
 		int actIndex,
 		IRunState runState)
 	{
-		ActModel? vanillaAct = actIndex >= 0 && actIndex < runState.Acts.Count
-			? runState.Acts[actIndex].CanonicalInstance
-			: null;
+		ActModel? vanillaAct = GetSlotAct(actIndex, runState);
 		return GetSelectableActGroups(actIndex, runState, vanillaAct);
 	}
 

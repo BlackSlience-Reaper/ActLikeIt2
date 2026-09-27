@@ -11,7 +11,7 @@ tmp/
 .vscode/
 *.suo
 *.user
-
+*.cs.uid
 # Machine-local configuration and logs
 local.props
 *.local.props

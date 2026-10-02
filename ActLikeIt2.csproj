@@ -10,7 +10,7 @@
     <NoWarn>$(NoWarn);CS0436</NoWarn>
     <RootNamespace>ActLikeIt2</RootNamespace>
     <AssemblyName>ActLikeIt2</AssemblyName>
-    <BuildOutputDir>$(MSBuildProjectDirectory)\build</BuildOutputDir>
+    <BuildOutputDir>$(MSBuildProjectDirectory)/build/variants/$(CompatibilityTarget)</BuildOutputDir>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,6 +39,7 @@
     <Compile Remove="build\**\*.cs" />
     <Compile Remove="tests\**\*.cs" />
     <Compile Remove="tmp\**\*.cs" />
+    <Compile Remove="loader/**;tools/**;dist/**" />
   </ItemGroup>
 
   <Target Name="CopyCustomOutput" AfterTargets="Build" Condition="'$(RuntimeIdentifier)' == ''">

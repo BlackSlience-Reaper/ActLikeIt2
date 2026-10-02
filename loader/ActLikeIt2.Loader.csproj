@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <AssemblyName>ActLikeIt2.Loader</AssemblyName>
+    <RootNamespace>ActLikeIt2.Loader</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GameRefsRoot Condition="'$(GameRefsRoot)' == ''">$(HOME)/sts2-mods/HextechRunes/versioned-dll-backups</GameRefsRoot>
+    <LoaderRefs>$(GameRefsRoot)/0.107.1/game-refs</LoaderRefs>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="sts2" HintPath="$(LoaderRefs)/sts2.dll" Private="false" />
+    <Reference Include="GodotSharp" HintPath="$(LoaderRefs)/GodotSharp.dll" Private="false" />
+    <Reference Include="0Harmony" HintPath="$(LoaderRefs)/0Harmony.dll" Private="false" />
+  </ItemGroup>
+</Project>

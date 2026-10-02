@@ -1,10 +1,10 @@
 {
   "id": "ActLikeIt2",
   "name": "Act Like It 2",
-  "author": "ShuiMuNianHua",
+  "author": "Natsuki",
   "description": "A framework mod for Slay the Spire 2 that adds a unified Act selection screen before every Act's Ancient, and a registration API for custom Acts and maps. The fork always offers the run's vanilla act plus every act registered through BaseLib's CustomActModel; Act Toggler's per-act weights drive the solo random option.",
-  "version": "v0.2.2",
-  "min_game_version": "0.111.0",
+  "version": "v0.2.3",
+  "min_game_version": "0.107.1",
   "has_pck": true,
   "has_dll": true,
   "dependencies": [],

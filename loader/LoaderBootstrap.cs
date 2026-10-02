@@ -1,14 +1,13 @@
 using System.Collections;
 using System.Security.Cryptography;
-using HarmonyLib;
 using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Runtime.Loader;
 using System.Text.Json;
 using MegaCrit.Sts2.Core.Debug;
-using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Modding;
-using MegaCrit.Sts2.Core.Saves;
 
 namespace ActLikeIt2.Loader;
 
@@ -39,6 +38,7 @@ public static class LoaderBootstrap
 
 	private static Assembly? _selectedVariantAssembly;
 	private static bool _legacyAssociationCallbackInstalled;
+	private static bool _failureCallbackInstalled;
 
 	public static void Initialize()
 	{
@@ -69,19 +69,87 @@ public static class LoaderBootstrap
 				$"[ActLikeIt2.Loader] Host version label={host.ReleaseLabel ?? "<none>"} " +
 				$"numeric={host.Numeric?.ToString() ?? "<none>"}; picked variant {variant.CompatTarget}.");
 
+			// 先只读元数据校验身份与目标，避免把打错的程序集加载进上下文后再也卸不掉。
+			ValidateVariantFile(variant);
 			AssemblyLoadContext context =
 				AssemblyLoadContext.GetLoadContext(typeof(LoaderBootstrap).Assembly)
 				?? AssemblyLoadContext.Default;
 			Assembly implementation = context.LoadFromAssemblyPath(variant.DllPath);
 			ValidateVariantAssembly(implementation, variant);
+			// 关联之后原版每次扫描模组类型都会 GetTypes；前置缺失时必须在关联前失败，不能把异常带进全体模组的类型发现。
+			GetLoadableTypes(implementation);
 			if (AssociateVariantAssemblyWithGame(implementation))
 				InvokeRealInitializer(implementation);
 		}
 		catch (Exception exception)
 		{
 			Log.Error($"[ActLikeIt2.Loader] Failed to load implementation: {exception}");
+			MarkModFailedWhenDetected();
 			throw;
 		}
+	}
+
+	/// <summary>
+	/// 原版吞掉初始化器异常后仍把模组记为 Loaded，依赖本模组的模组会照常加载并引用不存在的实现。
+	/// 原版在初始化返回后才写状态并广播检测事件，所以只能在事件里改为 Failed，依赖方随后得到缺少依赖的报错。
+	/// </summary>
+	private static void MarkModFailedWhenDetected()
+	{
+		if (_failureCallbackInstalled) return;
+		_failureCallbackInstalled = true;
+		ModManager.OnModDetected += OnFailedModDetected;
+	}
+
+	private static void OnFailedModDetected(Mod mod)
+	{
+		if (!string.Equals(ReadManifestId(mod), ModId, StringComparison.Ordinal)) return;
+		ModManager.OnModDetected -= OnFailedModDetected;
+		mod.state = ModLoadState.Failed;
+		Log.Error("[ActLikeIt2.Loader] Marked mod as failed so dependent mods are not loaded.");
+	}
+
+	private static void ValidateVariantFile(VariantCandidate variant)
+	{
+		using FileStream stream = File.OpenRead(variant.DllPath);
+		using PEReader peReader = new(stream);
+		MetadataReader reader = peReader.GetMetadataReader();
+		AssemblyDefinition definition = reader.GetAssemblyDefinition();
+		string identity = reader.GetString(definition.Name);
+		if (!string.Equals(identity, Path.GetFileNameWithoutExtension(RealDllName), StringComparison.Ordinal))
+		{
+			throw new BadImageFormatException(
+				$"Variant identity is {identity}, expected {Path.GetFileNameWithoutExtension(RealDllName)}.");
+		}
+
+		string? embeddedTarget = null;
+		foreach (CustomAttributeHandle handle in definition.GetCustomAttributes())
+		{
+			CustomAttribute attribute = reader.GetCustomAttribute(handle);
+			if (!IsAssemblyMetadataAttribute(reader, attribute.Constructor)) continue;
+			BlobReader blob = reader.GetBlobReader(attribute.Value);
+			if (blob.ReadUInt16() != 1) continue;
+			if (string.Equals(blob.ReadSerializedString(), CompatTargetMetadataKey, StringComparison.Ordinal))
+			{
+				embeddedTarget = blob.ReadSerializedString();
+				break;
+			}
+		}
+
+		if (!string.Equals(embeddedTarget, variant.CompatTarget, StringComparison.Ordinal))
+		{
+			throw new BadImageFormatException(
+				$"Variant metadata is {embeddedTarget ?? "<missing>"}, expected {variant.CompatTarget}.");
+		}
+	}
+
+	private static bool IsAssemblyMetadataAttribute(MetadataReader reader, EntityHandle constructor)
+	{
+		if (constructor.Kind != HandleKind.MemberReference) return false;
+		MemberReference member = reader.GetMemberReference((MemberReferenceHandle)constructor);
+		if (member.Parent.Kind != HandleKind.TypeReference) return false;
+		TypeReference type = reader.GetTypeReference((TypeReferenceHandle)member.Parent);
+		return reader.StringComparer.Equals(type.Namespace, "System.Reflection")
+			&& reader.StringComparer.Equals(type.Name, nameof(AssemblyMetadataAttribute));
 	}
 
 	private static void ValidateVariantAssembly(Assembly assembly, VariantCandidate variant)
@@ -150,10 +218,9 @@ public static class LoaderBootstrap
 		}
 
 		if (mod.state != ModLoadState.Loaded) return;
+		// 原版要等全部模组加载完才首次扫描 ModTypes，并且只取 Loaded 模组的 Mod.assembly；
+		// 这里改写之后扫描到的就是实现程序集，不需要额外桥接。
 		LegacyModAssemblyField!.SetValue(mod, _selectedVariantAssembly);
-		new Harmony(ModId + ".Loader").Patch(
-			AccessTools.PropertyGetter(typeof(ReflectionHelper), nameof(ReflectionHelper.ModTypes)),
-			postfix: new HarmonyMethod(typeof(LoaderBootstrap), nameof(BridgeModTypes)));
 		ModManager.OnModDetected -= OnLegacyModDetected;
 		_legacyAssociationCallbackInstalled = false;
 		Log.Info(
@@ -165,13 +232,6 @@ public static class LoaderBootstrap
 			mod.state = ModLoadState.Failed;
 			Log.Error($"[ActLikeIt2.Loader] Legacy initialization failed: {ex}");
 		}
-	}
-
-	// 旧版缓存只保存首次扫描结果；追加实现类型，同时保留先前模组的顺序。
-	private static void BridgeModTypes(ref Type[] __result)
-	{
-		if (_selectedVariantAssembly != null)
-			__result = __result.Concat(GetLoadableTypes(_selectedVariantAssembly)).Distinct().ToArray();
 	}
 
 	private static bool IsAssemblyAssociatedWithMod(Assembly assembly)
@@ -353,11 +413,7 @@ public static class LoaderBootstrap
 			}
 		}
 
-		Version? assemblyVersion = typeof(SerializableRun).Assembly.GetName().Version;
-		if (assemblyVersion != null && assemblyVersion != new Version(0, 0, 0, 0))
-		{
-			return new HostVersionSnapshot(assemblyVersion, fallbackLabel);
-		}
+		// sts2 程序集版本在各发行版都是 0.1.0.0，不能代表游戏版本；读不到发行版本就按未知宿主失败。
 		return new HostVersionSnapshot(null, fallbackLabel);
 	}
 

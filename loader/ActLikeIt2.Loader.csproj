@@ -11,6 +11,5 @@
   <ItemGroup>
     <Reference Include="sts2" HintPath="$(LoaderRefs)/sts2.dll" Private="false" />
     <Reference Include="GodotSharp" HintPath="$(LoaderRefs)/GodotSharp.dll" Private="false" />
-    <Reference Include="0Harmony" HintPath="$(LoaderRefs)/0Harmony.dll" Private="false" />
   </ItemGroup>
 </Project>

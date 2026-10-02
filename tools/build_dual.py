@@ -102,8 +102,8 @@ with tempfile.TemporaryDirectory(prefix="dual-stage-", dir=output.parent) as tem
     state = source_state(root)
     evidence = {"sourceCommit": state["commit"], "sourceDirty": bool(state["dirty"]), "dirtyFiles": state["dirty"]}
     if mod_id == "LibraryOfRuina":
-        # 本体编译时引用的就是这两个检出的产物；记录下来才能核对发行的前置包是否同源。
-        evidence["dependencies"] = {name: source_state(root / "build" / name) for name in ("LibraryOfRuinaLib", "ActLikeIt2-src")}
+        # 本体编译时引用的就是这两个检出的产物；记录下来才能核对发行的前置包是否同源。键名不能叫 dependencies：游戏会把带该键的 json 当作模组清单解析。
+        evidence["dependencySources"] = {name: source_state(root / "build" / name) for name in ("LibraryOfRuinaLib", "ActLikeIt2-src")}
     evidence["files"] = {str(p.relative_to(stage)): sha(p) for p in sorted(stage.rglob("*")) if p.is_file()}
     (stage / "bundle-evidence.json").write_text(json.dumps(evidence, indent=2) + "\n")
     if output.exists():

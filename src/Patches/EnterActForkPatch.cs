@@ -28,7 +28,7 @@ namespace ActLikeIt2.Patches;
 /// InitMarker throws for the starting coord.
 /// </summary>
 [HarmonyPatch(typeof(RunManager), nameof(RunManager.EnterAct))]
-internal static class EnterActForkPatch
+internal static partial class EnterActForkPatch
 {
 	[HarmonyPrefix]
 	private static bool Prefix(int currentActIndex, bool doTransition, ref Task __result)
@@ -77,7 +77,7 @@ internal static class EnterActForkPatch
 			// NTransition's overlay opaque with MouseFilter=Stop (NTransition.FadeOut), and the
 			// vanilla EnterAct clears it via FadeIn(doTransition). Without the FadeIn here the
 			// fork renders underneath a black, input-blocking overlay.
-			await RunManager.Instance.FadeOut();
+			await FadeOut(RunManager.Instance);
 			ClearScreensBeforeFork();
 			await RunManager.Instance.EnterRoom(new EventRoom(fork));
 			await RunManager.Instance.FadeIn(showTransition: false);
@@ -114,7 +114,7 @@ internal static class EnterActForkPatch
 		RunManager runManager = RunManager.Instance;
 		using (new NetLoadingHandle(runManager.NetService))
 		{
-			await runManager.FadeOut();
+			await FadeOut(runManager);
 			ClearScreensBeforeFork();
 			await runManager.EnterRoom(new EventRoom(ModelDb.Event<TheArchitect>()));
 			await runManager.FadeIn();

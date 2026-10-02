@@ -16,6 +16,8 @@
     <AssemblySearchPath_UseCandidateAssemblyFiles>false</AssemblySearchPath_UseCandidateAssemblyFiles>
     <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)build/obj/$(MSBuildProjectName)/$(CompatibilityTarget)/</BaseIntermediateOutputPath>
     <BaseOutputPath>$(MSBuildThisFileDirectory)build/bin/$(MSBuildProjectName)/$(CompatibilityTarget)/</BaseOutputPath>
+    <OutputPath>$(BaseOutputPath)$(Configuration)/</OutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/</IntermediateOutputPath>
     <DefineConstants Condition="'$(CompatibilityTarget)' == '0.107.1'">$(DefineConstants);STS2_0_107_1</DefineConstants>
     <DefineConstants Condition="'$(CompatibilityTarget)' == '0.111.0'">$(DefineConstants);STS2_0_111_0</DefineConstants>
   </PropertyGroup>

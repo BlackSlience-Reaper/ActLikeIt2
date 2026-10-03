@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ActLikeIt2.Patches;
 using ActLikeIt2.Runtime;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Runs;
@@ -20,7 +21,7 @@ public static class ActRegistry
 	private static readonly object Gate = new();
 	private static readonly Dictionary<string, ActRegistration> ByEntry = new(StringComparer.OrdinalIgnoreCase);
 	private static readonly Dictionary<Type, ActRegistrationOptions> ByActType = new();
-	private static readonly ConditionalWeakTable<IRunState, Dictionary<int, ActModel>> ExtendedSlotActs = new();
+	private static readonly ConditionalWeakTable<IRunState, Dictionary<int, ActModel>> OriginalSlotActs = new();
 	private static bool _bootstrapped;
 
 	/// <summary>
@@ -135,28 +136,49 @@ public static class ActRegistry
 		ActModel? currentAct = actIndex >= 0 && actIndex < runState.Acts.Count
 			? runState.Acts[actIndex].CanonicalInstance
 			: null;
-		if (actIndex < 3)
-		{
-			return currentAct;
-		}
+		// 前三幕槽位已被 Fork 换成注册幕时（控制台跳幕、继续存档后重进分岔），
+		// 当前幕不能再充当原版选项，否则会与同组注册幕合并成唯一选项。
+		bool replacedByRegisteredAct = actIndex < 3
+			&& currentAct != null
+			&& GetRegistrationsForSlot(actIndex + 1).Any(registration => string.Equals(
+				registration.IdEntry,
+				currentAct.Id.Entry,
+				StringComparison.OrdinalIgnoreCase));
 
-		// 第四幕及后续幕可能直接加入本局列表，未进入注册表。
-		// Fork 替换槽位后仍保留该候选；按本局隔离，避免污染下一局。
+		// 记录每局每个槽位首次进入分岔时的原始幕；Fork 替换槽位后仍提供该候选。
+		// 第四幕及后续幕可能直接加入本局列表，未进入注册表，同样依赖此记录。
+		// 按本局隔离，避免污染下一局。
 		lock (Gate)
 		{
-			Dictionary<int, ActModel> slotActs = ExtendedSlotActs.GetOrCreateValue(runState);
+			Dictionary<int, ActModel> slotActs = OriginalSlotActs.GetOrCreateValue(runState);
 			if (slotActs.TryGetValue(actIndex, out ActModel? originalAct))
 			{
 				return originalAct;
 			}
 
-			if (currentAct != null)
+			ActModel? slotAct = replacedByRegisteredAct
+				? GetDefaultVanillaAct(actIndex, runState)
+				: currentAct;
+			if (slotAct != null)
 			{
-				slotActs.Add(actIndex, currentAct);
+				slotActs.Add(actIndex, slotAct);
 			}
 
-			return currentAct;
+			return slotAct;
 		}
+	}
+
+	/// <summary>
+	/// 槽位原始幕已丢失时的确定性回退：不消耗 RNG，联机各端得到相同结果。
+	/// </summary>
+	private static ActModel? GetDefaultVanillaAct(int actIndex, IRunState runState)
+	{
+		List<ActModel> vanillaActs = ModelDb.Acts
+			.Where(act => VanillaActRollPatch.IsVanilla(act) && act.Index == actIndex)
+			.ToList();
+		return vanillaActs.FirstOrDefault(act => act.IsDefault)
+			?? vanillaActs.FirstOrDefault(act => act.IsUnlocked(runState.UnlockState))
+			?? vanillaActs.FirstOrDefault();
 	}
 
 	private static IReadOnlyList<ActModel> GetSelectableActs(

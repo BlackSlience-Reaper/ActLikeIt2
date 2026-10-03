@@ -98,6 +98,6 @@ internal static class VanillaActRollPatch
 		BuildVanillaList(rng, unlockState, isMultiplayer)
 			.FirstOrDefault(act => act.Index == actIndex);
 
-	private static bool IsVanilla(ActModel act) =>
+	internal static bool IsVanilla(ActModel act) =>
 		act is Overgrowth or Underdocks or Hive or Glory;
 }

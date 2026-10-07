@@ -14,7 +14,14 @@ root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--pck", type=Path, required=True, help="与当前源码资源对应的共享 PCK")
 parser.add_argument("--refs", type=Path, default=Path.home() / "sts2-mods/HextechRunes/versioned-dll-backups")
+parser.add_argument("--skip-build", action="store_true", help="使用已有的 Release 输出，仍重新组包并执行原有加载器检查")
 args = parser.parse_args()
+args.refs = args.refs.resolve()
+missing_refs = [args.refs / target / "game-refs" / name for target in TARGETS
+                for name in ("sts2.dll", "GodotSharp.dll", "0Harmony.dll", "SmartFormat.dll")
+                if not (args.refs / target / "game-refs" / name).is_file()]
+if missing_refs:
+    parser.error("缺少双版本游戏引用，请通过 --refs 指定备份根目录：\n" + "\n".join(map(str, missing_refs)))
 manifest_path = next(p for p in root.glob("*.json") if p.stem in ("LibraryOfRuina", "ActLikeIt2", "LibraryOfRuinaLib"))
 manifest = json.loads(manifest_path.read_text())
 mod_id = manifest["id"]
@@ -57,9 +64,13 @@ def properties(target):
     return ["-p:CompatibilityTarget=" + target, "-p:GameRefsRoot=" + str(args.refs.resolve())]
 
 def build(proj, target):
-    subprocess.run(["dotnet", "build", str(proj), "-c", "Release", "--nologo", *properties(target)], check=True, cwd=root)
+    if not args.skip_build:
+        subprocess.run(["dotnet", "build", str(proj), "-c", "Release", "--nologo", *properties(target)], check=True, cwd=root)
     path = subprocess.check_output(["dotnet", "msbuild", str(proj), "-nologo", "-getProperty:TargetPath", "-p:Configuration=Release", *properties(target)], text=True, cwd=root).strip()
-    return Path(path)
+    dll = Path(path)
+    if not dll.is_file():
+        raise FileNotFoundError(f"缺少 {target} 的 Release 输出：{dll}；请先不带 --skip-build 完成构建。")
+    return dll
 
 def sha(path):
     with path.open("rb") as stream:
@@ -72,9 +83,9 @@ def source_state(repo):
     return {"commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(), "dirty": dirty}
 
 def check_loader_contract(bundle):
-    checker = root / "tools/LoaderContractCheck/LoaderContractCheck.csproj"
+    checker = build(root / "tools/LoaderContractCheck/LoaderContractCheck.csproj", TARGETS[-1])
     for target in TARGETS:
-        subprocess.run(["dotnet", "run", "--project", str(checker), "-c", "Release", "--", str(bundle), str(args.refs.resolve() / target / "game-refs")], check=True, cwd=root)
+        subprocess.run(["dotnet", str(checker), str(bundle), str(args.refs / target / "game-refs")], check=True, cwd=root)
 
 output.parent.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix="dual-stage-", dir=output.parent) as temp:

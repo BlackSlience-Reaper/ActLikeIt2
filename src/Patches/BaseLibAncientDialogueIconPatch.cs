@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using ActLikeIt2.Compat;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Assets;
@@ -11,11 +12,14 @@ namespace ActLikeIt2.Patches;
 /// The dialogue line reads AncientEventModel.RunHistoryIcon directly. Resolve BaseLib's
 /// custom ancient icon from that instance, including when ImageHelper falls back to the
 /// game's generated run-history path for an act selected through the fork.
+/// Runs after RitsuLib's run-history icon prefixes so an ExternalAssetOverrideRegistry
+/// provider registered for a BaseLib ancient is not skipped by this fallback.
 /// </summary>
 [HarmonyPatch(typeof(AncientEventModel), nameof(AncientEventModel.RunHistoryIcon), MethodType.Getter)]
 internal static class BaseLibAncientDialogueIconPatch
 {
 	[HarmonyPrefix]
+	[HarmonyAfter(ExternalHarmonyIds.RitsuLibContentAssets)]
 	private static bool Prefix(AncientEventModel __instance, ref Texture2D __result) =>
 		!BaseLibAncientIconResolver.TryLoad(__instance, "CustomRunHistoryIconPath", ref __result);
 }
@@ -24,6 +28,7 @@ internal static class BaseLibAncientDialogueIconPatch
 internal static class BaseLibAncientDialogueIconOutlinePatch
 {
 	[HarmonyPrefix]
+	[HarmonyAfter(ExternalHarmonyIds.RitsuLibContentAssets)]
 	private static bool Prefix(AncientEventModel __instance, ref Texture2D __result) =>
 		!BaseLibAncientIconResolver.TryLoad(__instance, "CustomRunHistoryIconOutlinePath", ref __result);
 }

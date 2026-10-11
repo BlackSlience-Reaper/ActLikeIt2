@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using ActLikeIt2.Compat;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Random;
@@ -11,6 +12,9 @@ namespace ActLikeIt2.Patches;
 /// <summary>
 /// ActModel derives these resource paths from the custom model id through non-virtual getters.
 /// Template acts redirect those getters to their template so they can reuse shipped assets.
+/// The redirect is only the fallback: it runs after BaseLib/RitsuLib asset-override prefixes,
+/// so a template act that also declares RitsuLib asset overrides (or has an
+/// ExternalAssetOverrideRegistry provider) keeps those paths instead of being short-circuited.
 /// </summary>
 [HarmonyPatch]
 internal static class TemplateActAssetPathPatch
@@ -25,7 +29,8 @@ internal static class TemplateActAssetPathPatch
 	}
 
 	[HarmonyPrefix]
-	[HarmonyPriority(Priority.First)]
+	[HarmonyPriority(Priority.Last)]
+	[HarmonyAfter(ExternalHarmonyIds.BaseLib, ExternalHarmonyIds.RitsuLibContentAssets)]
 	private static bool Prefix(
 		ActModel __instance,
 		MethodBase __originalMethod,
@@ -51,11 +56,16 @@ internal static class TemplateActAssetPathPatch
 	}
 }
 
+/// <summary>
+/// Same fallback ordering as <see cref="TemplateActAssetPathPatch"/>: RitsuLib's
+/// CustomBackgroundLayersDirectoryPath override must win over the template's layers.
+/// </summary>
 [HarmonyPatch(typeof(ActModel), nameof(ActModel.GenerateBackgroundAssets))]
 internal static class TemplateActBackgroundAssetsPatch
 {
 	[HarmonyPrefix]
-	[HarmonyPriority(Priority.First)]
+	[HarmonyPriority(Priority.Last)]
+	[HarmonyAfter(ExternalHarmonyIds.BaseLib, ExternalHarmonyIds.RitsuLibContentAssets)]
 	private static bool Prefix(
 		ActModel __instance,
 		Rng rng,

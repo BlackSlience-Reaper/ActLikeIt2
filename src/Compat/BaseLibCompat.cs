@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Reflection;
+using System.Threading;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace ActLikeIt2.Compat;
 
@@ -13,6 +15,7 @@ internal static class BaseLibCompat
 	private const string CustomActModelTypeName = "BaseLib.Abstracts.CustomActModel";
 	private const string CustomContentDictionaryTypeName = "BaseLib.Patches.Content.CustomContentDictionary";
 	private const string ActNumberExtensionTypeName = "BaseLib.Extensions.ActModelExtensions";
+	private const string CurrentGeneratingRunStateTypeName = "BaseLib.Patches.Content.CurrentGeneratingRunState";
 
 	private static bool _present;
 
@@ -76,6 +79,55 @@ internal static class BaseLibCompat
 				CanonicalAct = actModel,
 				ActNumber = actNumber
 			});
+		}
+	}
+
+	/// <summary>
+	/// BaseLib only publishes CurrentGeneratingRunState.State inside RunManager.GenerateRooms.
+	/// Custom ancients read it from IsValidForAct/ShouldForceSpawn (for example to stay out of
+	/// runs whose modifiers depend on Neow), and BaseLib itself uses it to avoid repeating a
+	/// custom ancient across acts. Fork regeneration runs outside that method, so expose the
+	/// run state for the duration of the regeneration and restore the previous value afterward.
+	/// </summary>
+	public static IDisposable EnterRoomGenerationScope(RunState runState)
+	{
+		TryDiscover();
+		PropertyInfo? stateProperty = _present
+			? ResolveType(CurrentGeneratingRunStateTypeName)?
+				.GetProperty("State", BindingFlags.Public | BindingFlags.Static)
+			: null;
+		MethodInfo? setter = stateProperty?.GetSetMethod(nonPublic: true);
+		if (stateProperty == null || setter == null)
+		{
+			if (_present)
+			{
+				ActLikeIt2Mod.Log.Warn("BaseLib CurrentGeneratingRunState.State unavailable; custom ancients cannot see the run during fork regeneration.");
+			}
+
+			return NoopScope.Instance;
+		}
+
+		object? previous = stateProperty.GetValue(null);
+		setter.Invoke(null, new object?[] { runState });
+		return new RestoreScope(() => setter.Invoke(null, new[] { previous }));
+	}
+
+	private sealed class NoopScope : IDisposable
+	{
+		public static readonly NoopScope Instance = new();
+
+		public void Dispose()
+		{
+		}
+	}
+
+	private sealed class RestoreScope(Action restore) : IDisposable
+	{
+		private Action? _restore = restore;
+
+		public void Dispose()
+		{
+			Interlocked.Exchange(ref _restore, null)?.Invoke();
 		}
 	}
 

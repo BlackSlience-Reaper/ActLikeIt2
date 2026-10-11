@@ -47,7 +47,10 @@ internal static class RunStateActUtil
 	public static void RegenerateActRooms(RunState runState, int actIndex)
 	{
 		ActModel act = runState.Acts[actIndex];
-		act.GenerateRooms(runState.Rng.UpFront, runState.UnlockState, runState.Players.Count > 1);
+		using (Compat.BaseLibCompat.EnterRoomGenerationScope(runState))
+		{
+			act.GenerateRooms(runState.Rng.UpFront, runState.UnlockState, runState.Players.Count > 1);
+		}
 		if (RunManager.Instance.ShouldApplyTutorialModifications())
 		{
 			act.ApplyDiscoveryOrderModifications(runState.UnlockState);

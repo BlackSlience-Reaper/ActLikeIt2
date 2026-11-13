@@ -43,7 +43,18 @@ internal static class ActModelCreateMapPatch
 // so Harmony cannot prepare it ("Abstract methods cannot be prepared"). CustomMapPointTypes
 // is therefore not applied on the public-beta branch.
 
+#if STS2_0_113_0
+// 0.113.0 新增了 GenerateRooms(RunState) 重载，这里按参数类型指定实际生成房间的重载。
+[HarmonyPatch(
+    typeof(ActModel),
+    nameof(ActModel.GenerateRooms),
+    typeof(MegaCrit.Sts2.Core.Random.Rng),
+    typeof(MegaCrit.Sts2.Core.Unlocks.UnlockState),
+    typeof(bool),
+    typeof(bool))]
+#else
 [HarmonyPatch(typeof(ActModel), nameof(ActModel.GenerateRooms))]
+#endif
 internal static class ActModelGenerateRoomsPatch
 {
 	[HarmonyPostfix]

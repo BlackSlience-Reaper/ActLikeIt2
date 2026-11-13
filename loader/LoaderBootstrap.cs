@@ -334,7 +334,7 @@ public static class LoaderBootstrap
 		BundleVariantEntry entry)
 	{
 		string compatTarget = entry.CompatTarget?.Trim() ?? string.Empty;
-		if ((compatTarget != "0.107.1" && compatTarget != "0.111.0") || !TryParseVersion(compatTarget, out Version version))
+		if ((compatTarget != "0.107.1" && compatTarget != "0.111.0" && compatTarget != "0.113.0") || !TryParseVersion(compatTarget, out Version version))
 		{
 			throw new InvalidDataException($"Invalid compatibility target '{entry.CompatTarget}'.");
 		}

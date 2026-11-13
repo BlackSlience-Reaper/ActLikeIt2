@@ -9,7 +9,7 @@ import struct
 import subprocess
 import tempfile
 
-TARGETS = ("0.107.1", "0.111.0")
+TARGETS = ("0.107.1", "0.111.0", "0.113.0")
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--pck", type=Path, required=True, help="与当前源码资源对应的共享 PCK")

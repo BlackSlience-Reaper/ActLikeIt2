@@ -10,7 +10,7 @@
 
   <Import Project="local.props" Condition="Exists('local.props')" />
   <PropertyGroup>
-    <CompatibilityTarget Condition="'$(CompatibilityTarget)' == ''">0.111.0</CompatibilityTarget>
+    <CompatibilityTarget Condition="'$(CompatibilityTarget)' == ''">0.113.0</CompatibilityTarget>
     <Sts2DataDir Condition="'$(GameRefsRoot)' != ''">$(GameRefsRoot)/$(CompatibilityTarget)/game-refs</Sts2DataDir>
     <InstalledGameVersion Condition="'$(GameRefsRoot)' == '' and Exists('$(Sts2Dir)/release_info.json')">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(Sts2Dir)/release_info.json')), '&quot;version&quot;\s*:\s*&quot;v([^&quot;]+)&quot;').Groups[1].Value)</InstalledGameVersion>
     <AssemblySearchPath_UseCandidateAssemblyFiles>false</AssemblySearchPath_UseCandidateAssemblyFiles>
@@ -20,12 +20,14 @@
     <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(Configuration)/</IntermediateOutputPath>
     <DefineConstants Condition="'$(CompatibilityTarget)' == '0.107.1'">$(DefineConstants);STS2_0_107_1</DefineConstants>
     <DefineConstants Condition="'$(CompatibilityTarget)' == '0.111.0'">$(DefineConstants);STS2_0_111_0</DefineConstants>
+    <!-- 0.113.0 沿用 0.111.0 起的接口分支（STS2_0_111_0），仅 0.113.0 新变动的接口再用 STS2_0_113_0 区分。 -->
+    <DefineConstants Condition="'$(CompatibilityTarget)' == '0.113.0'">$(DefineConstants);STS2_0_111_0;STS2_0_113_0</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Condition="'$(MSBuildProjectName)' == 'ActLikeIt2'" Include="ActLikeIt2CompatibilityTarget" Value="$(CompatibilityTarget)" />
   </ItemGroup>
   <Target Name="ValidateCompatibilityTarget" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(CompatibilityTarget)' != '0.107.1' and '$(CompatibilityTarget)' != '0.111.0'" Text="仅支持 CompatibilityTarget=0.107.1 或 0.111.0。" />
+    <Error Condition="'$(CompatibilityTarget)' != '0.107.1' and '$(CompatibilityTarget)' != '0.111.0' and '$(CompatibilityTarget)' != '0.113.0'" Text="仅支持 CompatibilityTarget=0.107.1、0.111.0 或 0.113.0。" />
     <Error Condition="'$(GameRefsRoot)' == '' and '$(InstalledGameVersion)' != '$(CompatibilityTarget)'" Text="已安装游戏版本 $(InstalledGameVersion) 与 CompatibilityTarget=$(CompatibilityTarget) 不一致；请通过 GameRefsRoot 指定对应版本的引用备份。" />
     <Error Condition="!Exists('$(Sts2DataDir)/sts2.dll')" Text="缺少目标游戏引用：$(Sts2DataDir)/sts2.dll" />
   </Target>

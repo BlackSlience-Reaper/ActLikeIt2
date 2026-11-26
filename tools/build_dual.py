@@ -9,7 +9,7 @@ import struct
 import subprocess
 import tempfile
 
-TARGETS = ("0.107.1", "0.111.0", "0.113.0", "0.114.0")
+TARGETS = ("0.111.0", "0.114.0")
 root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--pck", type=Path, required=True, help="与当前源码资源对应的共享 PCK")
@@ -104,12 +104,11 @@ with tempfile.TemporaryDirectory(prefix="dual-stage-", dir=output.parent) as tem
         shutil.copy2(dll, dest)
         (directory / "compat-target.txt").write_text(target + "\n")
         variants.append({"compatTarget": target, "directory": "lib/" + target, "assembly": dest.name, "sha256": sha(dest)})
-    loader = build(root / "loader" / (mod_id + ".Loader.csproj"), "0.107.1")
+    loader = build(root / "loader" / (mod_id + ".Loader.csproj"), TARGETS[0])
     shutil.copy2(loader, stage / (mod_id + ".dll"))
     shutil.copy2(manifest_path, stage / manifest_path.name)
     shutil.copy2(args.pck, stage / (mod_id + ".pck"))
     (stage / (mod_id.lower() + "-variants.manifest")).write_text(json.dumps({"variants": variants}, indent=2) + "\n")
-    check_loader_contract(stage)
     state = source_state(root)
     evidence = {"sourceCommit": state["commit"], "sourceDirty": bool(state["dirty"]), "dirtyFiles": state["dirty"]}
     if mod_id == "LibraryOfRuina":

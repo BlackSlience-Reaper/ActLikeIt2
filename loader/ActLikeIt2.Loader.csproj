@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GameRefsRoot Condition="'$(GameRefsRoot)' == ''">$(HOME)/sts2-mods/HextechRunes/versioned-dll-backups</GameRefsRoot>
-    <LoaderRefs>$(GameRefsRoot)/0.107.1/game-refs</LoaderRefs>
+    <LoaderRefs>$(GameRefsRoot)/0.111.0/game-refs</LoaderRefs>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="sts2" HintPath="$(LoaderRefs)/sts2.dll" Private="false" />
